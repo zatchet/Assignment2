@@ -1,0 +1,135 @@
+---
+title: "Assignment 2"
+author: "Zach Rippas"
+date: "2/2/2022"
+output: html_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+```{r}
+require(ggplot2)
+#setwd("~/Desktop/Dropbox/bostonography_S2020/readings, lectures, code, data/Week 2/Day 1")
+
+acs1216<-read.csv('ACS_1216_TRACT.csv')
+```
+available publicly at https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/XZXAUP
+
+```{r}
+bos_tracts<-read.csv('Tracts_Boston_2010_BARI.csv')
+```
+available publicly at
+https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SQ6BT4
+
+```{r}
+acs1216_bos<-merge(acs1216,bos_tracts,by='CT_ID_10',all.y=TRUE)
+names(acs1216_bos)
+
+```
+
+Now, let's take a look at how graphics in ggplot2 can help us better understand the distribution of some demographic features across Boston, starting with ethnicity (though anyone using the source code can redo this with any other variable or set of variables).
+
+```{r}
+summary(acs1216_bos$AgeU18, na.rm=TRUE)
+summary(acs1216_bos$Age1834, na.rm=TRUE)
+summary(acs1216_bos$Age3564, na.rm=TRUE)
+summary(acs1216_bos$AgeO65, na.rm=TRUE)
+
+
+
+hist_u18<-ggplot(aes(x=AgeU18), data=acs1216_bos) + geom_histogram(bins=10)
+hist_u18
+```
+
+Keep in mind that ggplot2 can combine multiple operations through '+', meaning you can constantly build a more detailed and refined graph. Let's start be renaming the axes on our first graph, and then apply that same level of detail to additional graphs of the distribution of ethnic groups.
+
+```{r}
+hist_u18<-hist_u18 + xlab('% Under 18') + ylab('# of tracts')
+hist_u18
+
+hist_18_34<-ggplot(aes(x=Age1834), data=acs1216_bos) + geom_histogram(bins=10)  + xlab('% 18 to 34 years old') + ylab('# of tracts')
+hist_18_34
+
+hist_35_64<-ggplot(aes(x=Age3564), data=acs1216_bos) + geom_histogram(bins=10)  + xlab('% 35 - 64 years old') + ylab('# of tracts')
+hist_35_64
+
+hist_65andover<-ggplot(aes(x=AgeO65), data=acs1216_bos) + geom_histogram(bins=10)  + xlab('% 65+ years old') + ylab('# of tracts')
+hist_65andover
+```
+
+These results are about what is expected. The age distributions are fairly normal compared to national and global standards. However, it would interesting to see the types of neighborhoods that people of each age live in. To do this, we can use the 'Type' variable.
+
+Let's look at this with stacked histograms in ggplot2.
+
+```{r}
+stack_hist_u18<-hist_u18 + geom_histogram(aes(fill=Type),bins=10)
+```
+Again, let's use ggplot2's customization tools to refine the presentation a bit, making the Legend more interpretable.
+
+```{r}
+stack_hist_u18<-stack_hist_u18 + scale_fill_hue(name="Neighborhood Type", labels=c("Downtown","Industrial/Institutional","Parks","Residential"))
+stack_hist_u18
+
+stack_hist_18_34<-hist_18_34 + geom_histogram(aes(fill=Type), bins=10) + scale_fill_hue(name="Neighborhood Type", labels=c("Downtown","Industrial/Institutional","Parks","Residential"))
+stack_hist_18_34
+
+stack_hist_35_64<-hist_35_64 + geom_histogram(aes(fill=Type),bins=10) + scale_fill_hue(name="Neighborhood Type", labels=c("Downtown","Industrial/Institutional","Parks","Residential"))
+stack_hist_35_64
+
+stack_hist_65andover<-hist_65andover + geom_histogram(aes(fill=Type),bins=10) + scale_fill_hue(name="Neighborhood Type", labels=c("Downtown","Industrial/Institutional","Parks","Residential"))
+stack_hist_65andover
+```
+
+As a last examination, let's bring in the median home value measure that BARI adds to the census data.
+
+```{r}
+stack_hist_eh<-ggplot(aes(x=MedHomeVal), data=acs1216_bos) + geom_histogram(aes(fill=Type),bins=10) + scale_fill_hue(name="Neighborhood Type", labels=c("Downtown","Industrial/Institutional","Parks","Residential"))
+stack_hist_eh
+
+
+```
+
+We see that residents with higher home values are more likely to live in residential and downtown neighborhoods, while those with lower home values tend to be in industrial/institutional neighborhoods.
+
+Now that we know more or less the types of neighborhood each group inhabits, let's use dot plots to see which one's tend to live together and which are fully separated. The stronger the negative correlation, the more two groups are segregated from one another.
+
+To see how strong this correlation is, let's plot those under 18 on the x axis and those over 65 on the y axis and observe the pattern of the dots.
+
+```{r}
+plot_1834<-ggplot(data=acs1216_bos, aes(x=Age1834, y=AgeO65)) + geom_point() + xlab("% Between 18 and 34") + ylab("% over 65")
+plot_1834
+```
+Though this relationship doesn't seem super strong, there is some pattern to note here. Let's plot a regression line to help us see this better.
+
+```{r}
+plot_ageLine<-plot_1834 + geom_smooth(method = "lm",bins=10)
+plot_ageLine
+```
+
+Note that the relationship is strong, but there is something completely wrong about this. This line seems to indicate that communites with over approximately 90% 18-34 year olds have a negative percentage of elders.
+
+Now, let's compare this relation with that of other combinations of age groups.
+
+```{r}
+plot_u18_3564<-ggplot(data=acs1216_bos, aes(x=AgeU18, y=Age3564)) + geom_point() + xlab("% under 18") + ylab("% between 35 and 64")  + geom_smooth(method = "lm") + geom_smooth(method = "lm")
+plot_u18_3564
+
+plot_3564_O65<-ggplot(data=acs1216_bos, aes(x=Age3564, y=AgeO65)) + geom_point() + xlab("% 35-64") + ylab("% over 65")  + geom_smooth(method = "lm") + geom_smooth(method = "lm")
+plot_3564_O65
+```
+
+As a last step, we can again look at whether age separation is stronger in some types of neighborhoods or others.
+
+```{r}
+plot_1834 + geom_point(aes(color= Type)) + scale_fill_hue(name="Neighborhood Type", labels=c("Downtown","Industrial/Institutional","Parks","Residential"))
+
+plot_1834 + facet_wrap(~Type)
+```
+
+To recap, we have learned how to use ggplot2 to make histograms, stacked histograms, and dot plots, and to customize axis and  value labels. There is a ton more that ggplot2 can do interms of both forms of representation and customization. For more, visit: docs.ggplot2.org.
